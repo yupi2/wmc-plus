@@ -61,25 +61,47 @@ function wmcp.CreateMediaList(par)
 	medialist:SetDataHeight(22)
 	medialist:SetMultiSelect(false)
 	medialist:Dock(FILL)
-	medialist:AddColumn("ID")
+	medialist:AddColumn("Date")
 	medialist:AddColumn("Title")
 	medialist:AddColumn("Added by")
-	medialist.Columns[1]:SetFixedWidth(29)
+	-- 100 is large enough for "10/20/30 10:20:30"
+	medialist.Columns[1]:SetFixedWidth(100)
 	medialist.Columns[3]:SetFixedWidth(150)
 
 	-- Remove sorting by removing DButton functionality. This retains WMCPUI skin
-	for _,v in pairs(medialist.Columns) do v.Header:SetDisabled(true) v.DoClick = function() end end
+	for _,v in pairs(medialist.Columns) do
+		v.Header:SetDisabled(true) v.DoClick = function() end
+	end
 
 	-- Hack DataLayout to sort items before doing whatever DataLayout does
 	local olddl = medialist.DataLayout
 	medialist.DataLayout = function(self)
 		table.Copy(self.Sorted, self.Lines)
+
 		table.sort(self.Sorted, function(a, b)
-			local aval = tonumber(a:GetColumnText(1))
-			local bval = tonumber(b:GetColumnText(1))
-			if not aval then return false end
-			if not bval then return true end
-			return  aval < bval
+			-- `return true' if `a' should move up.
+
+			local adate = a:GetColumnText(1)
+			local bdate = b:GetColumnText(1)
+
+			-- The date column of the add-video button is "".
+			-- So we just keep it moving down to the bottom.
+			if adate == "" then return false end
+			if bdate == "" then return true end
+
+			-- Move date-less media to the top.
+			local aUnknown = adate == "Unknown"
+			local bUnknown = bdate == "Unknown"
+
+			-- `a' or `b' is unknown and the other is a date.
+			-- The date-less one is moved up.
+			if aUnknown ~= bUnknown then
+				return aUnknown
+			end
+
+			-- If `a' and `b' are both date-less then return false to not move.
+			-- Otherwise the date strings are sorted.
+			return aUnknown and false or (adate < bdate)
 		end)
 
 		return olddl(self)
@@ -180,7 +202,9 @@ function wmcp.CreateMediaList(par)
 		end
 
 		if not line then
-			line = medialist:AddLine(id)
+			local date = media.date and os.date("%c", media.date) or "Unknown"
+
+			line = medialist:AddLine(date)
 			line:SetCursor("hand")
 			line.ActiveCond = function(pself)
 				local clip = wmcp.GetClip()
