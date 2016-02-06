@@ -89,19 +89,8 @@ function wmcp.CreateMediaList(par)
 			if adate == "" then return false end
 			if bdate == "" then return true end
 
-			-- Move date-less media to the top.
-			local aUnknown = adate == "Unknown"
-			local bUnknown = bdate == "Unknown"
-
-			-- `a' or `b' is unknown and the other is a date.
-			-- The date-less one is moved up.
-			if aUnknown ~= bUnknown then
-				return aUnknown
-			end
-
-			-- If `a' and `b' are both date-less then return false to not move.
-			-- Otherwise the date strings are sorted.
-			return aUnknown and false or (adate < bdate)
+			-- Sort the date strings.
+			return adate < bdate
 		end)
 
 		return olddl(self)
@@ -202,9 +191,10 @@ function wmcp.CreateMediaList(par)
 		end
 
 		if not line then
-			local date = media.date and os.date("%c", media.date) or "Unknown"
-
+			-- 1451651696 is 2016-01-01T12:34:56Z
+			local date = os.date("%c", media.date and media.date or 1451651696)
 			line = medialist:AddLine(date)
+
 			line:SetCursor("hand")
 			line.ActiveCond = function(pself)
 				local clip = wmcp.GetClip()
